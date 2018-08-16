@@ -1,0 +1,8 @@
+[package]
+name = "farbfeld"
+version = "0.1.0"
+authors = ["Jonas Hedman Engström <jonas@hdng.se>"]
+
+[dependencies]
+png = "0.12.0"
+rayon = "1.0.2"
