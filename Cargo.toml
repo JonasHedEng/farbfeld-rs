@@ -5,4 +5,3 @@ authors = ["Jonas Hedman Engström <jonas@hdng.se>"]
 
 [dependencies]
 png = "0.12.0"
-rayon = "1.0.2"
