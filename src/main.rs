@@ -1,5 +1,6 @@
 #![feature(int_to_from_bytes)]
 extern crate png;
+extern crate time;
 
 use std::io;
 use std::io::Write;
@@ -15,7 +16,6 @@ fn write_header(handle: &mut io::StdoutLock, width: u32, height: u32) -> io::Res
     Ok(())
 }
 
-
 fn main() {
     let stdin = io::stdin();
     let decoder = png::Decoder::new(stdin.lock());
@@ -26,31 +26,38 @@ fn main() {
 
     write_header(&mut handle, info.width as u32, info.height as u32).unwrap();
 
-    let bit_depth_bytes = match info.bit_depth {
-        png::BitDepth::Eight => 1,
-        png::BitDepth::Sixteen => 2,
-        _ => panic!("Invalid bit-depth")
-    };
+    // READ
+    let mut buf = vec![0; info.buffer_size()];
+    reader.next_frame(&mut buf).expect("Could not read data");
 
-    let color_type_bytes = match info.color_type {
-        png::ColorType::RGB => 3,
-        png::ColorType::RGBA => 4,
-        _ => panic!("Invalid color-type")
-    };
+    // WRITE
+    let mut buffer = Vec::with_capacity(8 * info.buffer_size() / 3);
 
-    while let Some(row) = reader.next_row().unwrap() {
-        row.chunks(bit_depth_bytes * color_type_bytes)
-            .map(|p| {
-                match p.len() {
-                    3 => [p[0], p[0], p[1], p[1], p[2], p[2], 0xFF, 0xFF],
-                    4 => [p[0], p[0], p[1], p[1], p[2], p[2], p[3], p[3]],
-                    6 => [p[0], p[1], p[2], p[3], p[4], p[5], 0xFF, 0xFF],
-                    8 => [p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]],
-                    _ => panic!("Error reading bytes")
-                }
-            }).for_each(|p: [u8; 8]| handle.write_all(&p).unwrap());
+    match (info.bit_depth, info.color_type) {
+        (png::BitDepth::Eight, png::ColorType::RGB)  =>
+            buf.chunks(3)
+            .map(|p| [p[0], p[0], p[1], p[1], p[2], p[2], 0xFF, 0xFF])
+            .for_each(|p| buffer.extend(&p)),
+
+        (png::BitDepth::Eight, png::ColorType::RGBA) =>
+            buf.chunks(4)
+            .map(|p| [p[0], p[0], p[1], p[1], p[2], p[2], p[3], p[3]])
+            .for_each(|p| buffer.extend(&p)),
+
+        (png::BitDepth::Sixteen, png::ColorType::RGB)  =>
+            buf.chunks(6)
+            .map(|p| [p[0], p[1], p[2], p[3], p[4], p[5], 0xFF, 0xFF])
+            .for_each(|p| buffer.extend(&p)),
+
+        (png::BitDepth::Sixteen, png::ColorType::RGBA) =>
+            buf.chunks(8)
+            .map(|p| [p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]])
+            .for_each(|p| buffer.extend(&p)),
+
+        (_, _) => panic!("Unsupported PNG type")
     }
 
+    handle.write_all(&buffer).unwrap();
     handle.flush().unwrap();
 
 }
