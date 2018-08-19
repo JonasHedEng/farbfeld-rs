@@ -1,6 +1,5 @@
 #![feature(int_to_from_bytes)]
 extern crate png;
-extern crate time;
 
 use std::io;
 use std::io::Write;
@@ -16,10 +15,10 @@ fn write_header(handle: &mut io::StdoutLock, width: u32, height: u32) -> io::Res
     Ok(())
 }
 
-fn main() {
+fn main() -> io::Result<()> {
     let stdin = io::stdin();
     let decoder = png::Decoder::new(stdin.lock());
-    let (info, mut reader) = decoder.read_info().unwrap();
+    let (info, mut reader) = decoder.read_info()?;
 
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -30,9 +29,24 @@ fn main() {
     let mut buf = vec![0; info.buffer_size()];
     reader.next_frame(&mut buf).expect("Could not read data");
 
-    // WRITE
-    let mut buffer = Vec::with_capacity(8 * info.buffer_size() / 3);
+    // Create out buffer
+    let mut buffer = match (info.bit_depth, info.color_type) {
+        (png::BitDepth::Eight, png::ColorType::RGB) =>
+            Vec::with_capacity(8 * info.buffer_size() / 3),
 
+        (png::BitDepth::Eight, png::ColorType::RGBA) =>
+            Vec::with_capacity(8 * info.buffer_size() / 4),
+
+        (png::BitDepth::Sixteen, png::ColorType::RGB) =>
+            Vec::with_capacity(8 * info.buffer_size() / 6),
+
+        (png::BitDepth::Sixteen, png::ColorType::RGBA) =>
+            Vec::with_capacity(8 * info.buffer_size() / 8),
+
+        (_, _) => panic!("Unsupported PNG type")
+    };
+
+    // Fill out buffer
     match (info.bit_depth, info.color_type) {
         (png::BitDepth::Eight, png::ColorType::RGB)  =>
             buf.chunks(3)
@@ -57,7 +71,9 @@ fn main() {
         (_, _) => panic!("Unsupported PNG type")
     }
 
+    // Write
     handle.write_all(&buffer).unwrap();
     handle.flush().unwrap();
 
+    Ok(())
 }
