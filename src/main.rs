@@ -23,7 +23,7 @@ fn main() -> io::Result<()> {
     let stdout = io::stdout();
     let mut handle = stdout.lock();
 
-    write_header(&mut handle, info.width as u32, info.height as u32).unwrap();
+    write_header(&mut handle, info.width as u32, info.height as u32)?;
 
     // READ
     let mut buf = vec![0; info.buffer_size()];
