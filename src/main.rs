@@ -27,53 +27,97 @@ fn main() -> io::Result<()> {
 
     // READ
     let mut buf = vec![0; info.buffer_size()];
-    reader.next_frame(&mut buf).expect("Could not read data");
+    reader.next_frame(&mut buf)?;
 
     // Create out buffer
     let mut buffer = match (info.bit_depth, info.color_type) {
         (png::BitDepth::Eight, png::ColorType::RGB) =>
-            Vec::with_capacity(8 * info.buffer_size() / 3),
+            vec![0u8; 8 * info.buffer_size() / 3],
 
         (png::BitDepth::Eight, png::ColorType::RGBA) =>
-            Vec::with_capacity(8 * info.buffer_size() / 4),
+            vec![0u8; 8 * info.buffer_size() / 4],
 
         (png::BitDepth::Sixteen, png::ColorType::RGB) =>
-            Vec::with_capacity(8 * info.buffer_size() / 6),
+            vec![0u8; 8 * info.buffer_size() / 6],
 
         (png::BitDepth::Sixteen, png::ColorType::RGBA) =>
-            Vec::with_capacity(8 * info.buffer_size() / 8),
+            vec![0u8; 8 * info.buffer_size() / 8],
 
         (_, _) => panic!("Unsupported PNG type")
     };
 
     // Fill out buffer
     match (info.bit_depth, info.color_type) {
-        (png::BitDepth::Eight, png::ColorType::RGB)  =>
-            buf.chunks(3)
-            .map(|p| [p[0], p[0], p[1], p[1], p[2], p[2], 0xFF, 0xFF])
-            .for_each(|p| buffer.extend(&p)),
+        (png::BitDepth::Eight, png::ColorType::RGB)  => {
+            let size = 3;
 
-        (png::BitDepth::Eight, png::ColorType::RGBA) =>
-            buf.chunks(4)
-            .map(|p| [p[0], p[0], p[1], p[1], p[2], p[2], p[3], p[3]])
-            .for_each(|p| buffer.extend(&p)),
+            for (idx, p) in buf.chunks(size).enumerate() {
+                let i = idx*size;
+                buffer[i+0] = p[0];
+                buffer[i+1] = p[0];
+                buffer[i+2] = p[1];
+                buffer[i+3] = p[1];
+                buffer[i+4] = p[2];
+                buffer[i+5] = p[2];
+                buffer[i+6] = 0xFF;
+                buffer[i+7] = 0xFF;
+            }
+        },
 
-        (png::BitDepth::Sixteen, png::ColorType::RGB)  =>
-            buf.chunks(6)
-            .map(|p| [p[0], p[1], p[2], p[3], p[4], p[5], 0xFF, 0xFF])
-            .for_each(|p| buffer.extend(&p)),
+        (png::BitDepth::Eight, png::ColorType::RGBA) => {
+            let size = 4;
 
-        (png::BitDepth::Sixteen, png::ColorType::RGBA) =>
-            buf.chunks(8)
-            .map(|p| [p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]])
-            .for_each(|p| buffer.extend(&p)),
+            for (idx, p) in buf.chunks(size).enumerate() {
+                let i = idx*size;
+                buffer[i+0] = p[0];
+                buffer[i+1] = p[0];
+                buffer[i+2] = p[1];
+                buffer[i+3] = p[1];
+                buffer[i+4] = p[2];
+                buffer[i+5] = p[2];
+                buffer[i+6] = p[3];
+                buffer[i+7] = p[3];
+            }
+        },
+
+        (png::BitDepth::Sixteen, png::ColorType::RGB)  => {
+            let size = 6;
+
+            for (idx, p) in buf.chunks(size).enumerate() {
+                let i = idx*size;
+                buffer[i+0] = p[0];
+                buffer[i+1] = p[1];
+                buffer[i+2] = p[2];
+                buffer[i+3] = p[3];
+                buffer[i+4] = p[4];
+                buffer[i+5] = p[5];
+                buffer[i+6] = 0xFF;
+                buffer[i+7] = 0xFF;
+            }
+        },
+
+        (png::BitDepth::Sixteen, png::ColorType::RGBA) => {
+            let size = 8;
+
+            for (idx, p) in buf.chunks(size).enumerate() {
+                let i = idx*size;
+                buffer[i+0] = p[0];
+                buffer[i+1] = p[1];
+                buffer[i+2] = p[2];
+                buffer[i+3] = p[3];
+                buffer[i+4] = p[4];
+                buffer[i+5] = p[5];
+                buffer[i+6] = p[6];
+                buffer[i+7] = p[7];
+            }
+        },
 
         (_, _) => panic!("Unsupported PNG type")
     }
 
     // Write
-    handle.write_all(&buffer).unwrap();
-    handle.flush().unwrap();
+    handle.write_all(&buffer)?;
+    handle.flush()?;
 
     Ok(())
 }
